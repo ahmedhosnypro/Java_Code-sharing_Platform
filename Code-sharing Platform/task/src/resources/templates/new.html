@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:th="http://www.thymeleaf.org" lang="en">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Code</title>
+    <title>Create</title>
+    <script src="/script.js"></script>
     <!-- bootstrap -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
           integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
@@ -14,20 +14,21 @@
 <body>
 <div class="container">
     <div class="row">
-        <div class="col-12">
+        <div class="col-md-12">
             <h1>Code Sharing Platform</h1>
         </div>
-    </div>
-    <div class="row">
-        <div class="col-12" th:if="${code == null}">
-            <p>Code not found</p>
-        </div>
-        <div class="col-12" th:if="${code != null}">
-            <div class="col-12">
-                <h2>Code snippet</h2>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="form-group">
+                    <form action="/api/code/new" method="post">
+                        <div>
+                            <label for="code_snippet"></label>
+                            <textarea name="code" id="code_snippet" cols="80" rows="10"></textarea>
+                        </div>
+                        <button id="send_snippet" type="submit" onclick="send()">Submit</button>
+                    </form>
+                </div>
             </div>
-            <pre th:text="${code}" id="code_snippet"></pre>
-            <span th:text=" ${date}" id="load_date"></span>
         </div>
     </div>
 </div>

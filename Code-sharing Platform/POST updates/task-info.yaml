@@ -251,6 +251,94 @@ files:
         }
     }
   learner_created: false
+- name: src/platform/controller/web/WebController.java
+  visible: true
+  text: |
+    package platform.controller.web;
+
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import platform.controller.model.Code;
+
+    @Controller("/")
+    public class WebController {
+
+        @GetMapping(path = "/code", produces = "text/html")
+        public String getCode(Model model) {
+            model.addAttribute("code", new Code().getCode());
+            return "code";
+        }
+    }
+  learner_created: true
+- name: src/platform/controller/api/ApiController.java
+  visible: true
+  text: |
+    package platform.controller.api;
+
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import org.springframework.web.bind.annotation.RestController;
+    import platform.controller.model.Code;
+
+    @RestController("/api")
+    public class ApiController {
+        @GetMapping(path = "api/code", produces = "application/json")
+        public ResponseEntity<Code> getCode() {
+            return new ResponseEntity<>(new Code(), HttpStatus.OK);
+        }
+    }
+  learner_created: true
+- name: src/resources/templates/code.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:th="http://www.thymeleaf.org" lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Code</title>
+    </head>
+    <body>
+    <pre th:text="${code}"></pre>
+    </body>
+    </html>
+  learner_created: true
+- name: src/resources/static/script.js
+  visible: true
+  learner_created: true
+- name: src/resources/templates/new.html
+  visible: true
+  learner_created: true
+- name: src/platform/model/CodeGist.java
+  visible: true
+  text: |
+    package platform.controller.model;
+
+
+    import lombok.*;
+
+    @AllArgsConstructor
+    @Getter
+    @Setter
+    public class Code {
+        private String code;
+
+        public Code() {
+            this.code = """
+                    public class Main {
+                        public static void main(String[] args) {
+                            System.out.println("Hello world!");
+                        }
+                    }
+                    """;
+        }
+    }
+  learner_created: true
 feedback_link: https://hyperskill.org/learn/step/11028#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Congratulations!
+  time: "Mon, 27 Mar 2023 21:42:58 UTC"
 record: -1
