@@ -164,6 +164,21 @@ files:
         implementation 'org.springframework.boot:spring-boot-starter-web'
     }
   learner_created: false
-feedback_link: https://hyperskill.org/projects/130/stages/692/implement#comment
-status: Unchecked
+- name: src/platform/controller/api/ApiController.java
+  visible: true
+  learner_created: true
+- name: src/platform/controller/web/WebController.java
+  visible: true
+  learner_created: true
+- name: src/platform/controller/model/Code.java
+  visible: true
+  learner_created: true
+- name: src/resources/templates/code.html
+  visible: true
+  learner_created: true
+feedback_link: https://hyperskill.org/learn/step/11027#comment
+status: Solved
+feedback:
+  message: Congratulations!
+  time: "Mon, 27 Mar 2023 20:16:28 UTC"
 record: -1
