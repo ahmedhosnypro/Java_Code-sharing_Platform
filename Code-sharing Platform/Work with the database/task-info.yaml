@@ -474,6 +474,319 @@ files:
         }
     }
   learner_created: false
+- name: src/platform/service/GistService.java
+  visible: true
+  text: |
+    package platform.service;
+
+    import lombok.Synchronized;
+    import org.springframework.context.annotation.Scope;
+    import org.springframework.stereotype.Service;
+    import platform.model.Gist;
+
+    import java.time.Instant;
+    import java.util.ArrayList;
+    import java.util.Deque;
+    import java.util.Iterator;
+    import java.util.List;
+    import java.util.concurrent.ConcurrentLinkedDeque;
+    import java.util.concurrent.atomic.AtomicInteger;
+
+
+    @Service
+    @Scope("singleton")
+    public class GistService {
+        private final Deque<Gist> gists = new ConcurrentLinkedDeque<>();
+
+        AtomicInteger idIndex = new AtomicInteger(0);
+
+        public List<Gist> getLatest(int limit) {
+            limit = Math.min(limit, gists.size());
+
+            Iterator<Gist> gistsIterator = gists.iterator();
+            List<Gist> latestGists = new ArrayList<>();
+            for (int i = 0; i < limit; i++) {
+                latestGists.add(gistsIterator.next());
+            }
+            return latestGists;
+        }
+
+        public int save(Gist gist) {
+            gist.setDate(Instant.now());
+            gist.setId(idIndex.incrementAndGet());
+            gists.addFirst(gist);
+            return gist.getId();
+        }
+
+        public Gist getGist(int id) {
+            return gists.stream().filter(gist -> gist.getId() == id).findFirst().orElse(null);
+        }
+
+        public void deleteGist(int id) {
+            gists.removeIf(gist -> gist.getId() == id);
+        }
+
+        public void updateGist(int id, Gist gist) {
+            Gist gistToUpdate = getGist(id);
+            gistToUpdate.setCode(gist.getCode());
+            gistToUpdate.setDate(Instant.now());
+        }
+
+        public int getGistsCount() {
+            return gists.size();
+        }
+
+        public List<Gist> getGists() {
+            return new ArrayList<>(gists);
+        }
+    }
+  learner_created: true
+- name: src/resources/static/script.js
+  visible: true
+  text: |-
+    function send() {
+        let object = {
+            "code": document.getElementById("code_snippet").value
+        };
+
+        let json = JSON.stringify(object);
+
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", '/api/code/new', false)
+        xhr.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+        xhr.send(json);
+
+        if (xhr.status == 200) {
+            alert("Success!");
+        }
+    }
+  learner_created: true
+- name: src/platform/controller/web/WebController.java
+  visible: true
+  text: |
+    package platform.controller.web;
+
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import org.springframework.web.bind.annotation.PathVariable;
+    import platform.model.Gist;
+    import platform.service.GistService;
+
+    import java.util.List;
+
+    @Controller("/")
+    public class WebController {
+
+        @Autowired
+        private GistService gistService;
+
+        //get gist by id
+        @GetMapping(path = "/code/{id}", produces = "text/html")
+        public String getCodeById(Model model, @PathVariable int id) {
+            Gist gist = gistService.getGist(id);
+            model.addAttribute("code", gist.getCode());
+            model.addAttribute("date", gist.getDate());
+            return "code";
+        }
+
+        @GetMapping(path = "/code/new", produces = "text/html")
+        public String getNewCode() {
+            return "new";
+        }
+
+        @GetMapping(path = "/code/latest", produces = "text/html")
+        public String getLatestCode(Model model) {
+            List<Gist> gists = gistService.getLatest(10);
+            model.addAttribute("gists", gists);
+            return "latest";
+        }
+    }
+  learner_created: true
+- name: src/platform/controller/api/ApiController.java
+  visible: true
+  text: |
+    package platform.controller.api;
+
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.web.bind.annotation.*;
+    import platform.model.Gist;
+    import platform.service.GistService;
+
+    import java.util.Map;
+
+    @RestController("/api")
+    public class ApiController {
+        @Autowired
+        private GistService gistService;
+
+        @GetMapping(path = "api/code/{id}", produces = "application/json")
+        public ResponseEntity<Object> getGist(@PathVariable int id) {
+            return new ResponseEntity<>(gistService.getGist(id), HttpStatus.OK);
+        }
+
+        @GetMapping(path = "api/code/latest", produces = "application/json")
+        public ResponseEntity<Object> getLatest() {
+            return new ResponseEntity<>(gistService.getLatest(10), HttpStatus.OK);
+        }
+
+        @PostMapping(path = "api/code/new", produces = "application/json")
+        public ResponseEntity<Object> newGist(@RequestBody Gist codeGist) {
+            var id = String.valueOf(gistService.save(codeGist));
+            return new ResponseEntity<>(Map.of("id", id), HttpStatus.OK);
+        }
+    }
+  learner_created: true
+- name: src/platform/model/Gist.java
+  visible: true
+  text: |
+    package platform.model;
+
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import lombok.*;
+
+    import java.time.Instant;
+
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public class Gist {
+        @JsonIgnore
+        private int id;
+        private String code;
+        private Instant date;
+    }
+  learner_created: true
+- name: src/resources/templates/latest.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Latest</title>
+        <!-- bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+              integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+                integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+                crossorigin="anonymous"></script>
+        <!-- bootstrap -->
+    </head>
+    <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Latest</h1>
+                <div th:each="gist : ${gists}">
+                    <div class="row">
+                        <div class="col-12">
+                            <h2>Code snippet</h2>
+                        </div>
+                        <pre th:text="${gist.code}"></pre>
+                        <span th:text="${gist.date}"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
+    </html>
+  learner_created: true
+- name: src/resources/templates/code.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:th="http://www.thymeleaf.org" lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Code</title>
+        <!-- bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+              integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+                integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+                crossorigin="anonymous"></script>
+        <!-- bootstrap -->
+    </head>
+    <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>Code Sharing Platform</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12" th:if="${code == null}">
+                <p>Code not found</p>
+            </div>
+            <div class="col-12" th:if="${code != null}">
+                <div class="col-12">
+                    <h2>Code snippet</h2>
+                </div>
+                <pre th:text="${code}" id="code_snippet"></pre>
+                <span th:text=" ${date}" id="load_date"></span>
+            </div>
+        </div>
+    </div>
+    </body>
+    </html>
+  learner_created: true
+- name: src/resources/templates/new.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Create</title>
+        <script src="/script.js"></script>
+        <!-- bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+              integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+                integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+                crossorigin="anonymous"></script>
+        <!-- bootstrap -->
+    </head>
+    <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Code Sharing Platform</h1>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <form action="/api/code/new" method="post">
+                            <div>
+                                <label for="code_snippet"></label>
+                                <textarea name="code" id="code_snippet" cols="80" rows="10"></textarea>
+                            </div>
+                            <button id="send_snippet" type="submit" onclick="send()">Submit</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
+    </html>
+  learner_created: true
+- name: src/platform/repository/GistRepository.java
+  visible: true
+  learner_created: true
+- name: src/platform/model/GistDTO.java
+  visible: true
+  learner_created: true
 feedback_link: https://hyperskill.org/learn/step/11030#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Congratulations!
+  time: "Tue, 28 Mar 2023 03:46:46 UTC"
 record: -1

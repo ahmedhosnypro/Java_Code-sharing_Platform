@@ -11,6 +11,12 @@
             integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
             crossorigin="anonymous"></script>
     <!-- bootstrap -->
+    <!-- highlight.js -->
+    <link rel="stylesheet"
+          href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/styles/default.min.css">
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+    <!-- highlight.js -->
 </head>
 <body>
 <div class="container">
@@ -27,7 +33,7 @@
             <div class="col-12">
                 <h2>Code snippet</h2>
             </div>
-            <pre th:text="${code}" id="code_snippet"></pre>
+            <pre id="code_snippet"><code th:text="${code}"></code></pre>
             <span th:text=" ${date}" id="load_date"></span>
         </div>
     </div>
