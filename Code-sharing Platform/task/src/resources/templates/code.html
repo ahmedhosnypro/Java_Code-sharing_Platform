@@ -26,15 +26,17 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-12" th:if="${code == null}">
+        <div class="col-12" th:if="${gistDTO == null}">
             <p>Code not found</p>
         </div>
-        <div class="col-12" th:if="${code != null}">
+        <div class="col-12" th:if="${gistDTO != null}">
             <div class="col-12">
                 <h2>Code snippet</h2>
             </div>
-            <pre id="code_snippet"><code th:text="${code}"></code></pre>
-            <span th:text=" ${date}" id="load_date"></span>
+            <span th:if="${gistDTO.timeLimited == true}" th:text=" ${gistDTO.time}" id="time_restriction"></span>
+            <span th:if="${gistDTO.viewsLimited == true}" th:text=" ${gistDTO.views}" id="views_restriction"></span>
+            <pre id="code_snippet"><code th:text="${gistDTO.code}"></code></pre>
+            <span th:text=" ${gistDTO.creationDate}" id="load_date"></span>
         </div>
     </div>
 </div>

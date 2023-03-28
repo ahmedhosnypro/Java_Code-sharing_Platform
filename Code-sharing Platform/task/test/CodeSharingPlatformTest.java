@@ -2,6 +2,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.hyperskill.hstest.dynamic.input.DynamicTesting;
 import org.hyperskill.hstest.dynamic.input.DynamicTestingMethod;
+import org.hyperskill.hstest.exception.outcomes.PresentationError;
 import org.hyperskill.hstest.exception.outcomes.WrongAnswer;
 import org.hyperskill.hstest.mocks.web.response.HttpResponse;
 import org.hyperskill.hstest.stage.SpringTest;
@@ -15,8 +16,11 @@ import platform.CodeSharingPlatform;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.hyperskill.hstest.common.Utils.sleep;
 import static org.hyperskill.hstest.testing.expect.Expectation.expect;
 import static org.hyperskill.hstest.testing.expect.json.JsonChecker.isArray;
+import static org.hyperskill.hstest.testing.expect.json.JsonChecker.isInteger;
+import static org.hyperskill.hstest.testing.expect.json.JsonChecker.isNumber;
 import static org.hyperskill.hstest.testing.expect.json.JsonChecker.isObject;
 import static org.hyperskill.hstest.testing.expect.json.JsonChecker.isString;
 
@@ -49,10 +53,29 @@ public class CodeSharingPlatformTest extends SpringTest {
         "Snippet #12",
         "Snippet #13",
         "Snippet #14",
+
+        "Snippet #15",
+        "Snippet #16",
+        "Snippet #17",
+        "Snippet #18",
+        "Snippet #19",
+        "Snippet #20",
+        "Snippet #21",
+        "Snippet #22",
     };
 
     final Map<Integer, String> ids = new HashMap<>();
     final Map<Integer, String> dates = new HashMap<>();
+    final Map<Integer, Integer> secs = new HashMap<>();
+    final Map<Integer, Integer> views = new HashMap<>();
+    final Map<Integer, Long> creationTime = new HashMap<>();
+
+    boolean checkSecret = false;
+    long freezeTime = 0;
+    long awaitTime = 0;
+    long sleepDurationSec = 0;
+    long sleepLowerBound = 0;
+    long sleepUpperBound = 0;
 
     static String th(int val) {
         if (val == 1) {
@@ -115,6 +138,14 @@ public class CodeSharingPlatformTest extends SpringTest {
         }
 
         return elem;
+    }
+
+    static void checkMissingId(Element doc, String url, String id) {
+        Element elem = doc.getElementById(id);
+        if (elem != null) {
+            throw new WrongAnswer("GET " + url +
+                " shouldn't contain an element with id \"" + id + "\", but one was found");
+        }
     }
 
     @DynamicTestingMethod
@@ -222,14 +253,88 @@ public class CodeSharingPlatformTest extends SpringTest {
         // test 85
         () -> checkApiLatest(13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
         () -> checkWebLatest(13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
+
+        // test 87
+        () -> postSnippet(14),
+        () -> postSnippet(15, 100, 20),
+        () -> postSnippet(16),
+        () -> postSnippet(17, 0, 5),
+        () -> postSnippet(18),
+        () -> postSnippet(19, 3, 0),
+        () -> postSnippet(20),
+        () -> postSnippet(21, 30, 0),
+
+        // test 95
+        () -> checkApiCode(14),
+        () -> checkWebCode(14),
+        () -> checkApiCode(16),
+        () -> checkWebCode(16),
+        () -> checkApiCode(18),
+        () -> checkWebCode(18),
+        () -> checkApiCode(20),
+        () -> checkWebCode(20),
+
+        // test 103
+        () -> {
+            freezeTime = System.currentTimeMillis();
+            sleep(5000);
+            return reloadServer();
+        },
+
+        // test 104
+        () -> {
+            awaitTime = System.currentTimeMillis();
+            sleepDurationSec = (awaitTime - freezeTime) / 1000;
+            sleepLowerBound = sleepDurationSec;
+            sleepUpperBound = sleepLowerBound + 10;
+            checkSecret = true;
+            return CheckResult.correct();
+        },
+
+        // test 105
+        () -> checkApiCode(15),
+        () -> checkWebCode(15), //106
+        () -> checkApiCode(17), //107
+        () -> checkWebCode(17), //108
+        () -> checkApiCode404(19), //109
+        () -> checkWebCode404(19), //110
+        () -> checkApiCode(21), //111
+        () -> checkWebCode(21), //112
+
+        // test 113
+        () -> checkApiLatest(20, 18, 16, 14, 13, 12, 11, 10, 9, 8),
+        () -> checkWebLatest(20, 18, 16, 14, 13, 12, 11, 10, 9, 8),
+
+        // test 115
+        () -> checkApiCode(17),
+        () -> checkApiCode(17),
+        () -> checkWebCode(17), //117
+        () -> checkApiCode404(17),
+        () -> checkWebCode404(17),
     };
 
     private CheckResult checkApiCode(int id) {
         String codeId = ids.get(id);
         String snippet = SNIPPETS[id];
+        int time = secs.get(id);
+        int views = this.views.get(id);
 
         HttpResponse resp = get(API_CODE + codeId).send();
-        checkStatusCode(resp, 200);
+        int elapsedTime = (int) (System.currentTimeMillis() - creationTime.get(id)) / 1000;
+
+        // If execution is slow, response could rightfully be 404
+        if (time > 0) {
+            if (elapsedTime < time){
+                checkStatusCode(resp, 200);
+            } else {
+                checkStatusCode(resp, 404);
+                //System.out.println("404 with valid timeout");
+                return CheckResult.correct();
+            }
+        } else {
+            checkStatusCode(resp, 200);
+        }
+
 
         expect(resp.getContent()).asJson().check(
             isObject()
@@ -241,8 +346,38 @@ public class CodeSharingPlatformTest extends SpringTest {
                     dates.put(id, s);
                     return true;
                 }))
+                .value("time", isInteger(i -> {
+                    if (!checkSecret || time == 0) {
+                        return i == 0;
+                    }
+
+                    //int upperBound = (int) (time - sleepLowerBound);
+                    //int lowerBound = (int) (time - sleepUpperBound);
+
+                    int targetTime = time - elapsedTime; // Time which should be remaining on the clock
+                    final int toleranceSeconds = 3;
+                    int lowerBound = targetTime - toleranceSeconds;
+                    int upperBound = targetTime + toleranceSeconds;
+
+                    return i >= lowerBound && i <= upperBound;
+                }))
+                .value("views", isInteger(i -> {
+                    if (!checkSecret || views == 0) {
+                        return i == 0;
+                    }
+                    boolean result = i == views - 1;
+                    this.views.put(id, views - 1);
+                    return result;
+                }))
+
         );
 
+        return CheckResult.correct();
+    }
+
+    private CheckResult checkApiCode404(int id) {
+        HttpResponse resp = get(API_CODE + ids.get(id)).send();
+        checkStatusCode(resp, 404);
         return CheckResult.correct();
     }
 
@@ -250,10 +385,25 @@ public class CodeSharingPlatformTest extends SpringTest {
         String codeId = ids.get(id);
         String apiSnippet = SNIPPETS[id];
         String apiDate = dates.get(id);
+        int time = secs.get(id);
+        int views = this.views.get(id);
 
         String req = WEB_CODE + codeId;
         HttpResponse resp = get(req).send();
-        checkStatusCode(resp, 200);
+        int elapsedTime = (int) (System.currentTimeMillis() - creationTime.get(id)) / 1000;
+
+        // If execution is slow, response could rightfully be 404
+        if (time > 0) {
+            if (elapsedTime < time){
+                checkStatusCode(resp, 200);
+            } else {
+                checkStatusCode(resp, 404);
+                //System.out.println("404 with valid timeout");
+                return CheckResult.correct();
+            }
+        } else {
+            checkStatusCode(resp, 200);
+        }
 
         String html = resp.getContent();
         Document doc = Jsoup.parse(html);
@@ -276,12 +426,58 @@ public class CodeSharingPlatformTest extends SpringTest {
                 "and api snippet date are different");
         }
 
-        if (!html.contains("hljs.initHighlightingOnLoad()")) {
-            return CheckResult.wrong(
-                "Can't determine if code highlighting works or not.\n" +
-                "Use \"hljs.initHighlightingOnLoad()\" inside the script tags in the HTML page.");
+        if (time != 0) {
+            Element timeSpan = getById(doc, req, "time_restriction", "span");
+            String timeText = timeSpan.text();
+            int timeOnPage;
+            try {
+                timeOnPage = expect(timeText).toContain(1).integers().get(0);
+            } catch (PresentationError ex) {
+                return CheckResult.wrong(
+                    "GET " + req + " cannot find number of seconds inside \"time_restriction\" span element.\n" +
+                    "Full text:\n" + timeSpan
+                );
+            }
+            //int upperBound = (int) (time - sleepLowerBound);
+            //int lowerBound = (int) (time - sleepUpperBound);
+
+            int targetTime = time - elapsedTime; // Time which should be remaining on the clock
+            final int toleranceSeconds = 3;
+            int lowerBound = targetTime - toleranceSeconds;
+            int upperBound = targetTime + toleranceSeconds;
+
+            if (!(timeOnPage >= lowerBound && timeOnPage <= upperBound)) {
+                return CheckResult.wrong("GET " + req + " should " +
+                    "contain time restriction between " + lowerBound
+                    + " and " + upperBound + ", found: " + timeOnPage + "\n" +
+                    "Full text:\n" + timeSpan);
+            }
+        } else {
+            checkMissingId(doc, req, "time_restriction");
         }
 
+        if (views != 0) {
+            Element viewsSpan = getById(doc, req, "views_restriction", "span");
+            String viewsText = viewsSpan.text();
+            int viewsOnPage = expect(viewsText).toContain(1).integers().get(0);
+
+            if (viewsOnPage != views - 1) {
+                return CheckResult.wrong("GET " + req + " should " +
+                    "contain views restriction equal to " + (views - 1)
+                    + ", found: " + viewsOnPage + "\n" +
+                    "Full text:\n" + viewsSpan);
+            }
+            this.views.put(id, views - 1);
+        } else {
+            checkMissingId(doc, req, "views_restriction");
+        }
+
+        return CheckResult.correct();
+    }
+
+    private CheckResult checkWebCode404(int id) {
+        HttpResponse resp = get(WEB_CODE + ids.get(id)).send();
+        checkStatusCode(resp, 404);
         return CheckResult.correct();
     }
 
@@ -301,17 +497,27 @@ public class CodeSharingPlatformTest extends SpringTest {
     }
 
     private CheckResult postSnippet(int id) {
-        String snippet = SNIPPETS[id];
+        return postSnippet(id, 0, 0);
+    }
 
-        HttpResponse resp = post(API_CODE_NEW, "{\"code\":\"" + snippet + "\"}").send();
+    private CheckResult postSnippet(int id, int secs, int views) {
+        String snippet = SNIPPETS[id];
+        this.secs.put(id, secs);
+        this.views.put(id, views);
+
+        HttpResponse resp = post(API_CODE_NEW,
+            "{\"code\":\"" + snippet + "\", " +
+                "\"time\": " + secs +", " +
+                "\"views\": " + views + "}").send();
+
+        creationTime.put(id, System.currentTimeMillis());
+
         checkStatusCode(resp, 200);
 
         expect(resp.getContent()).asJson().check(
             isObject()
                 .value("id", isString(i -> {
-                    try {
-                        Integer.parseInt(i);
-                    } catch (NumberFormatException ex) {
+                    if (i.length() != 36) {
                         return false;
                     }
                     ids.put(id, "" + i);
@@ -331,6 +537,10 @@ public class CodeSharingPlatformTest extends SpringTest {
             isArray(ids.length, isObject()
                 .value("code", isString())
                 .value("date", isString())
+                .value("time", isInteger(i -> i == 0,
+                    "should be equal to 0 (latest snippets should not contain time restrictions)"))
+                .value("views", isInteger(i -> i == 0,
+                    "should be equal to 0 (latest snippets should not contain time restrictions)"))
             )
         );
 
