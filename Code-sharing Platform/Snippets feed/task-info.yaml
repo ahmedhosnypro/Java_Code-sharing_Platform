@@ -420,6 +420,215 @@ files:
         }
     }
   learner_created: false
+- name: src/resources/static/script.js
+  visible: true
+  text: |-
+    function send() {
+        let object = {
+            "code": document.getElementById("code_snippet").value
+        };
+
+        let json = JSON.stringify(object);
+
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", '/api/code/new', false)
+        xhr.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+        xhr.send(json);
+
+        if (xhr.status == 200) {
+            alert("Success!");
+        }
+    }
+  learner_created: true
+- name: src/platform/controller/web/WebController.java
+  visible: true
+  text: |
+    package platform.controller.web;
+
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import platform.model.CodeGist;
+
+    @Controller("/")
+    public class WebController {
+
+        @GetMapping(path = "/code", produces = "text/html")
+        public String getCode(Model model) {
+            model.addAttribute("code", CodeGist.getInstance().getCode());
+            model.addAttribute("date", CodeGist.getInstance().getDate());
+            return "code";
+        }
+
+        @GetMapping(path = "/code/new", produces = "text/html")
+        public String getNewCode() {
+            return "new";
+        }
+    }
+  learner_created: true
+- name: src/platform/controller/api/ApiController.java
+  visible: true
+  text: |
+    package platform.controller.api;
+
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.ResponseEntity;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import org.springframework.web.bind.annotation.PostMapping;
+    import org.springframework.web.bind.annotation.RequestBody;
+    import org.springframework.web.bind.annotation.RestController;
+    import platform.model.CodeGist;
+
+    import java.util.Map;
+
+    @RestController("/api")
+    public class ApiController {
+        @GetMapping(path = "api/code", produces = "application/json")
+        public ResponseEntity<CodeGist> getCode() {
+            return new ResponseEntity<>(CodeGist.getInstance(), HttpStatus.OK);
+        }
+
+        @PostMapping(path = "api/code/new", produces = "application/json")
+        public ResponseEntity<Object> save(@RequestBody CodeGist codeGist) {
+            CodeGist.update(codeGist);
+            return new ResponseEntity<>(Map.of(), HttpStatus.OK);
+        }
+    }
+  learner_created: true
+- name: src/resources/templates/code.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:th="http://www.thymeleaf.org" lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Code</title>
+        <!-- bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+              integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+                integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+                crossorigin="anonymous"></script>
+    </head>
+    <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>Code Sharing Platform</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12" th:if="${code == null}">
+                <p>Code not found</p>
+            </div>
+            <div class="col-12" th:if="${code != null}">
+                <div class="col-12">
+                    <h2>Code snippet</h2>
+                </div>
+                <pre th:text="${code}" id="code_snippet"></pre>
+                <span th:text=" ${date}" id="load_date"></span>
+            </div>
+        </div>
+    </div>
+    </body>
+    </html>
+  learner_created: true
+- name: src/resources/templates/new.html
+  visible: true
+  text: |-
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Create</title>
+        <script src="/script.js"></script>
+        <!-- bootstrap -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+              integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+                integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+                crossorigin="anonymous"></script>
+    </head>
+    <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Code Sharing Platform</h1>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <form action="/api/code/new" method="post">
+                            <div>
+                                <label for="code_snippet"></label>
+                                <textarea name="code" id="code_snippet" cols="80" rows="10"></textarea>
+                            </div>
+                            <button id="send_snippet" type="submit" onclick="send()">Submit</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
+    </html>
+  learner_created: true
+- name: src/resources/templates/latest.html
+  visible: true
+  learner_created: true
+- name: src/platform/service/GistService.java
+  visible: true
+  learner_created: true
+- name: src/platform/model/Gist.java
+  visible: true
+  text: |
+    package platform.model;
+
+
+    import com.fasterxml.jackson.annotation.JsonIgnore;
+    import lombok.*;
+
+    import java.time.Instant;
+
+    @AllArgsConstructor
+    @Getter
+    @Setter
+    public class CodeGist {
+        private String code;
+        private Instant date;
+
+        @JsonIgnore
+        private static CodeGist instance;
+
+        private CodeGist() {
+            this.code = """
+                    public class Main {
+                        public static void main(String[] args) {
+                            System.out.println("Hello world!");
+                        }
+                    }
+                    """;
+            this.date = Instant.now();
+        }
+
+        @JsonIgnore
+        public static CodeGist getInstance() {
+            if (instance == null) {
+                instance = new CodeGist();
+            }
+            return instance;
+        }
+
+        public static void update(CodeGist codeGist) {
+            instance = codeGist;
+            instance.date = Instant.now();
+        }
+    }
+  learner_created: true
 feedback_link: https://hyperskill.org/learn/step/11029#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Congratulations!
+  time: "Tue, 28 Mar 2023 00:28:06 UTC"
 record: -1

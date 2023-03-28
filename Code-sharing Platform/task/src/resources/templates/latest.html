@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create</title>
-    <script src="/script.js"></script>
+    <title>Latest</title>
     <!-- bootstrap -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
           integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
@@ -16,18 +15,14 @@
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h1>Code Sharing Platform</h1>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="form-group">
-                    <form action="/api/code/new" method="post">
-                        <div>
-                            <label for="code_snippet"></label>
-                            <textarea name="code" id="code_snippet" cols="80" rows="10"></textarea>
-                        </div>
-                        <button id="send_snippet" type="submit" onclick="send()">Submit</button>
-                    </form>
+            <h1>Latest</h1>
+            <div th:each="gist : ${gists}">
+                <div class="row">
+                    <div class="col-12">
+                        <h2>Code snippet</h2>
+                    </div>
+                    <pre th:text="${gist.code}"></pre>
+                    <span th:text="${gist.date}"></span>
                 </div>
             </div>
         </div>
